@@ -20,8 +20,7 @@ export function Nav({ go, border = true }) {
     <header className={`gnb ${border ? 'border' : ''}`}>
       <div className="wrap gnb-inner">
         <button className="logo" onClick={() => go('home')}>
-          <Star size={34} className="logo-star" />
-          <span>Demo</span>
+          <img className="logo-img" src="/assets/logo/demo-logo.png" alt="Demo" />
         </button>
         <nav className="gnb-links">
           <button
@@ -42,9 +41,7 @@ export function Footer() {
   return (
     <footer className="footer">
       <div className="wrap footer-inner">
-        <Star size={26} />
-        <b>Demo</b>
-        <span>대학생과 대학원생을 위한 설문 사전 점검</span>
+        <img className="footer-logo" src="/assets/logo/demo-logo.png" alt="Demo" />
       </div>
     </footer>
   );
