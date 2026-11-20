@@ -1,0 +1,63 @@
+{
+  "types": [
+    {
+      "type_id": "T1",
+      "name": "자취 요리파",
+      "description": "자취 경험이 있다(3년차 이상). 식비를 아끼려고 직접 요리하는 편이며 배달은 가끔만 시킨다. 식생활 만족도가 비교적 높다."
+    },
+    {
+      "type_id": "T2",
+      "name": "배달·편의점 자취생",
+      "description": "자취 경험이 있다. 요리할 시간이 없어 배달과 편의점으로 끼니를 해결한다. 식비 지출이 커서 부담을 느끼고 만족도는 낮은 편이다."
+    },
+    {
+      "type_id": "T3",
+      "name": "자취 비경험자",
+      "description": "자취 경험이 없다(본가나 기숙사 생활). 학식과 집밥 위주로 먹고, 학식 메뉴나 운영시간에 불만이 있다."
+    },
+    {
+      "type_id": "T4",
+      "name": "자취 초보",
+      "description": "자취 경험이 있으나 시작한 지 1년이 안 됐다. 장보기와 요리가 서툴러 식사 패턴이 불규칙하고 이것저것 시도해 본다."
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "q4",
+      "title": "자취를 하지 않는 이유는?",
+      "type": "short_text"
+    },
+    {
+      "question_id": "q8",
+      "title": "식생활에서 가장 불편한 점을 적어주세요.",
+      "type": "paragraph"
+    }
+  ],
+  "requests": [
+    {
+      "type_id": "T3",
+      "question_id": "q4",
+      "count": 3
+    },
+    {
+      "type_id": "T1",
+      "question_id": "q8",
+      "count": 3
+    },
+    {
+      "type_id": "T2",
+      "question_id": "q8",
+      "count": 3
+    },
+    {
+      "type_id": "T3",
+      "question_id": "q8",
+      "count": 3
+    },
+    {
+      "type_id": "T4",
+      "question_id": "q8",
+      "count": 3
+    }
+  ]
+}
