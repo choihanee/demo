@@ -295,11 +295,16 @@ export function fillText(plan, textAnswers = [], options = {}) {
   const questions = plan.form.questions || []
 
   // 유형×문항별 답 목록 (섞어서 겹치지 않게 순서대로 사용)
-  const pool = {}
+    const pool = {}
+  const poolSource = {} // 프롬프트②가 폴백으로 만든 답이면 source: 'fallback'이 붙어 옴
   for (const t of Array.isArray(textAnswers) ? textAnswers : []) {
     const list = (t?.answers || []).filter((s) => typeof s === 'string' && s.trim())
-    if (list.length) pool[`${t.type_id}|${t.question_id}`] = shuffle(rng, [...list])
+    if (!list.length) continue
+    const key = `${t.type_id}|${t.question_id}`
+    pool[key] = shuffle(rng, [...list])
+    poolSource[key] = t.source === 'fallback' ? 'fallback' : 'ai'
   }
+
   const cursor = {}
   const textSource = { ai: 0, fallback: 0 }
   const take = (key, fallbackList) => {
@@ -307,7 +312,7 @@ export function fillText(plan, textAnswers = [], options = {}) {
     if (!list) { textSource.fallback++; return pickOne(rng, fallbackList) }
     const i = cursor[key] = (cursor[key] ?? -1) + 1
     if (i === list.length) warnings.add(`${key.replace('|', ' ')}: AI 답이 부족해 일부 반복 사용`)
-    textSource.ai++
+        textSource[poolSource[key]]++
     return list[i % list.length]
   }
 

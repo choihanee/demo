@@ -5,7 +5,7 @@ import cors from 'cors'
 import { readForm } from './formReader.js'
 import { submitForm } from './formSubmitter.js'
 import { getTypes, getTextAnswers } from '../ai/index.js'
-import { planResponses, fillText } from '../engine/generator.js'
+import { planResponses, fillText, validate } from '../engine/generator.js'
 
 const app = express()
 app.use(cors())
@@ -28,9 +28,12 @@ app.post('/api/generate', async (req, res) => {
     const { form, condition } = req.body
     const types = await getTypes(form, condition)                       // 수민 ①
     const plan = planResponses(form, condition, types)                  // 가빈 1단계
-    const textQs = form.questions.filter((q) => ['short_text', 'paragraph'].includes(q.type))
+    const textQs = form.questions.filter((q) => ['short_text', 'paragraph'].includes(q.type) || q.has_other) // 서술형 + "기타" 직접 입력
     const textAnswers = await getTextAnswers(plan.types, textQs, plan.textRequests) // 수민 ②
-    res.json(fillText(plan, textAnswers))                               // 가빈 2단계
+    const result = fillText(plan, textAnswers)                          // 가빈 2단계
+    const errors = validate(form, result)
+    if (errors.length) result.meta.validation_errors = errors
+    res.json(result)
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: e.message })
@@ -40,7 +43,10 @@ app.post('/api/generate', async (req, res) => {
 // 응답 → 구글폼 제출
 app.post('/api/form/submit', async (req, res) => {
   try {
-    res.json(await submitForm(req.body.form, req.body.rows))
+    const { form, rows } = req.body
+    const errors = validate(form, { rows })
+    if (errors.length) return res.status(400).json({ error: '제출 전 검사 실패', errors: errors.slice(0, 20) })
+    res.json(await submitForm(form, rows))
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
