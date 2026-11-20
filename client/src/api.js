@@ -2,7 +2,7 @@
 import { sampleData } from "./mocks/sampleData";
 
 // Mock 데이터 사용 여부
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 const BASE = "http://localhost:3001";
 
