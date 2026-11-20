@@ -1,0 +1,2 @@
+{ "name": "demo-engine", "version": "0.1.0", "type": "module", "main": "generator.js",
+  "scripts": { "test": "node test.js" } }
