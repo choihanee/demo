@@ -1,31 +1,50 @@
-// [김가빈] 엔진 혼자 테스트: node test.js
+// [김가빈] 엔진 테스트: node test.js
 import { readFileSync, writeFileSync } from 'node:fs'
-import { planResponses, fillText } from './generator.js'
+import { planResponses, fillText, validate, generate } from './generator.js'
 
 const load = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf-8'))
 const form = load('../data/questions.json')
 const { types } = load('../data/types.json')
 const textAnswers = load('../data/text_answers.json')
-
-const plan = planResponses(form, form.condition, types, { seed: 42 })
-console.log('서술형 요청 목록 (수민님 프롬프트② 입력):', plan.textRequests)
-
-const result = fillText(plan, textAnswers)
-console.log(`\n생성 ${result.meta.count}명, 경고:`, result.meta.warnings)
-console.log('첫 응답자:', JSON.stringify(result.rows[0], null, 2))
-console.log('q1 통계:', result.stats.q1, '/ q5 통계:', result.stats.q5)
-
-// 검사: 분기 위반, 필수 문항 빈칸
-const errors = []
-for (const r of result.rows) {
-  if (r.answers.q1 === '아니오' && r.answers.q2 !== null) errors.push(`${r.respondent_id}: 비경험자인데 q2 응답`)
-  if (r.answers.q1 === '예' && r.answers.q4 !== null) errors.push(`${r.respondent_id}: 경험자인데 q4 응답`)
-  for (const q of form.questions) if (q.required && r.answers[q.id] === null && r.page_history.split(',').includes(String(form.sections.find((s) => s.id === q.section).page_index)))
-    errors.push(`${r.respondent_id}: 필수 ${q.id} 빈칸`)
+let failed = 0
+const check = (name, errors) => {
+  if (errors.length) { failed++; console.log(`❌ ${name}: ${errors.length}건\n   ${errors.slice(0, 5).join('\n   ')}`) }
+  else console.log(`✅ ${name}`)
 }
-const quality = result.rows.reduce((m, r) => ((m[r.quality] = (m[r.quality] || 0) + 1), m), {})
-console.log('성실도:', quality)
-console.log(errors.length ? `❌ 오류 ${errors.length}건\n${errors.join('\n')}` : '✅ 분기·필수 문항 검사 통과')
+
+// 1. 정상 흐름
+const plan = planResponses(form, form.condition, types, { seed: 42 })
+console.log('수민님께 보낼 서술형 요청:', plan.textRequests)
+const result = fillText(plan, textAnswers)
+console.log(`\n${result.meta.count}명 생성 / 성실도`, result.meta.quality, '/ 서술형 출처', result.meta.text_source)
+if (result.meta.warnings.length) console.log('경고:', result.meta.warnings)
+
+// 유형별 요약
+const byType = {}
+for (const r of result.rows) {
+  const b = (byType[r.type_name] ||= { 인원: 0, 거주: {}, q1: {} })
+  b.인원++; b.거주[r.attributes.거주] = (b.거주[r.attributes.거주] || 0) + 1; b.q1[r.answers.q1] = (b.q1[r.answers.q1] || 0) + 1
+}
+console.table(byType)
+const 거주 = result.rows.reduce((m, r) => ((m[r.attributes.거주] = (m[r.attributes.거주] || 0) + 1), m), {})
+console.log('거주 전체:', 거주, '← 조건', form.condition.attributes.거주, `(${form.condition.total}명 기준)`)
+
+check('정상 흐름 검사 (분기·필수·선택지·기타·표시)', validate(form, result))
+
+// 2. AI 실패 (유형·서술형 없음) 에도 돌아가는지
+const noAi = generate(form, form.condition, [], [], { seed: 1 })
+check('AI 실패 대비 (폴백)', validate(form, noAi))
+
+// 3. 섹션 없는 폼
+const flat = { ...form, sections: [], questions: form.questions.map(({ section, ...q }) => ({ ...q, options: q.options?.map(({ go_to, ...o }) => o) })) }
+check('섹션 없는 폼', validate(flat, generate(flat, { total: 30 }, types, textAnswers, { seed: 3 })))
+
+// 4. 이상한 AI 값 (비율 합 2, 없는 선택지)
+const weird = types.map((t) => ({ ...t, ratio: t.ratio * 2, probs: { ...t.probs, q3: { 없는선택지: 1 } } }))
+const w = generate(form, form.condition, weird, textAnswers, { seed: 5 })
+check('이상한 AI 값', validate(form, w))
+console.log('   경고 예시:', w.meta.warnings.slice(0, 2))
 
 writeFileSync(new URL('../data/responses.json', import.meta.url), JSON.stringify(result, null, 2))
-console.log('\n→ data/responses.json 저장')
+console.log(`\n→ data/responses.json 저장 ${failed ? `(실패 ${failed}건)` : '(전부 통과)'}`)
+process.exit(failed ? 1 : 0)
