@@ -7,7 +7,9 @@ const TYPE_MAP = {
 };
 
 export async function readForm(formUrl) {
-  const response = await fetch(formUrl);
+  const cleanUrl = formUrl.split('?')[0];
+
+  const response = await fetch(cleanUrl);
   if (!response.ok) throw new Error(`Google Form 가져오기 실패: ${response.status}`);
 
   const html = await response.text();
@@ -19,6 +21,7 @@ export async function readForm(formUrl) {
 
   const sections = [{ id: 'section1', page_index: 0, title: '', next: 'submit' }];
   const sectionByItemId = {};
+  const endMove = {}; // 섹션 id → 그 섹션이 끝날 때의 이동 설정
   const questions = [];
   let current = 'section1';
   let n = 0;
@@ -28,6 +31,7 @@ export async function readForm(formUrl) {
 
     // 섹션 구분
     if (typeCode === 8) {
+      endMove[current] = item[5]; // 앞 섹션이 끝날 때의 이동 설정
       const idx = sections.length;
       current = `section${idx + 1}`;
       sectionByItemId[itemId] = current;
@@ -70,20 +74,27 @@ export async function readForm(formUrl) {
     questions.push(q);
   }
 
-  // go_to: 섹션 item id → 팀 섹션 id (-2는 제출)
+  // 보기의 go_to: 섹션 item id → 팀 섹션 id (-3은 제출, -2는 다음 섹션이라 분기 아님)
   let hasBranching = false;
   for (const q of questions) {
     for (const o of q.options ?? []) {
       if (o.go_to === undefined) continue;
       if (o.go_to === -3) o.go_to = 'submit';
-        else if (sectionByItemId[o.go_to]) o.go_to = sectionByItemId[o.go_to];
-        else delete o.go_to; // -2(다음 섹션) 등은 분기 아님
+      else if (sectionByItemId[o.go_to]) o.go_to = sectionByItemId[o.go_to];
+      else delete o.go_to;
       if (o.go_to) hasBranching = true;
     }
   }
 
-  // 기본 next: 다음 섹션 (분기 있으면 branch로 바꾸는 건 나중에)
-  sections.forEach((s, i) => { s.next = sections[i + 1]?.id ?? 'submit'; });
+  // 섹션 끝 이동 설정 → next (-3 제출, 섹션 id 이동, 그 외는 다음 섹션)
+  sections.forEach((s, i) => {
+    const v = endMove[s.id];
+    if (v === -3) s.next = 'submit';
+    else if (sectionByItemId[v]) s.next = sectionByItemId[v];
+    else s.next = sections[i + 1]?.id ?? 'submit';
+  });
+
+  // 분기 질문이 있는 섹션은 branch
   for (const s of sections) {
     if (questions.some(q => q.section === s.id && q.options?.some(o => o.go_to))) s.next = 'branch';
   }
@@ -92,8 +103,8 @@ export async function readForm(formUrl) {
     form: {
       title: data[3] ?? data[1]?.[8] ?? '',
       description: data[1]?.[0] ?? '',
-      form_url: formUrl,
-      submit_url: formUrl.replace(/\/viewform.*/, '/formResponse'),
+      form_url: cleanUrl,
+      submit_url: cleanUrl.replace(/\/viewform.*/, '/formResponse'),
       has_branching: hasBranching,
     },
     sections,
