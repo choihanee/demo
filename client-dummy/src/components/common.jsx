@@ -21,7 +21,7 @@ export function Nav({ go, border = true }) {
       <div className="wrap gnb-inner">
         <button className="logo" onClick={() => go('home')}>
           <Star size={34} className="logo-star" />
-          <span>더미</span>
+          <span>Demo</span>
         </button>
         <nav className="gnb-links">
           <button
@@ -43,7 +43,7 @@ export function Footer() {
     <footer className="footer">
       <div className="wrap footer-inner">
         <Star size={26} />
-        <b>더미</b>
+        <b>Demo</b>
         <span>대학생과 대학원생을 위한 설문 사전 점검</span>
       </div>
     </footer>
