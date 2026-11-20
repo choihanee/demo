@@ -46,15 +46,14 @@ export default function Home({ go, link, setLink }) {
             />
           ))}
 
-          <div className="hero-badge rise" style={{ '--d': '0.05s' }}><i />AI 설문 사전 점검</div>
           <h1 className="hero-title rise" style={{ '--d': '0.15s' }}>
-            설문 보내기 전에,<br />먼저 돌려봐요!
+            설문 더미데이터<br />생성하기
           </h1>
-          <p className="hero-sub rise" style={{ '--d': '0.3s' }}>가상 응답으로 문항과 선택지를 미리 점검해요.</p>
+          <p className="hero-sub rise" style={{ '--d': '0.3s' }}>AI가 설문지에 맞춰 자동 응답을 해줘요</p>
 
           <form className="hero-input rise" style={{ '--d': '0.42s' }} onSubmit={(e) => { e.preventDefault(); go('connect'); }}>
             <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="구글폼 응답 링크를 붙여넣어 주세요" />
-            <Button type="submit">테스트 시작</Button>
+            <Button type="submit">생성 시작</Button>
           </form>
 
           <img className="abs fx-bob" alt="더미 유리병" src={A + 'characters/dummy-jar.png'} style={{ left: 445, top: 394, width: 391, height: 391 }} />
@@ -86,3 +85,4 @@ export default function Home({ go, link, setLink }) {
     </div>
   );
 }
+

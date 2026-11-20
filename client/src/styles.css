@@ -250,3 +250,8 @@ td { padding: 8px; border-bottom: 1px solid var(--line); }
 td.cut { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .actions.left { justify-content: flex-start; }
+
+.logo-img { height: 54px; width: auto; display: block; margin: -6px 0; transition: transform .18s ease; }
+.logo:hover .logo-img { transform: rotate(-3deg) scale(1.05); }
+.footer-logo { height: 40px; width: auto; display: block; }
+
