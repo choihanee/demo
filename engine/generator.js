@@ -244,12 +244,13 @@ export function planResponses(form, rawCondition, rawTypes, options = {}) {
         const opt = (q.options || []).find((o) => typeof o === 'object' && o.label === a.value && o.go_to)
         if (opt) goTo = opt.go_to
       }
+      // 다음 섹션 정하기: 분기 답의 go_to → 없으면 구글폼 기본값인 "다음 섹션으로 진행"
+      const nextInOrder = sections[sections.indexOf(current) + 1]?.id ?? 'submit'
       let next = current.next
-      if (next === 'branch') {
-        next = goTo
-        if (!next) warnings.add(`${current.id}: 분기 섹션인데 이동할 곳을 못 찾아 제출로 끝냄`)
-      }
-      if (!next || next === 'submit') break
+      if (next === 'branch') next = goTo ?? nextInOrder
+      else if (!next) next = nextInOrder
+      if (next === 'submit') break
+      
       current = sections.find((s) => s.id === next)
       if (!current) warnings.add(`없는 섹션 ${next}로 이동하려 해서 끝냄`)
     }
