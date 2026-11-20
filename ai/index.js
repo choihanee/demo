@@ -1,27 +1,61 @@
-// [장수민] AI 프롬프트 ①②. 지금은 /data 목업을 돌려주고, 실제 LLM 호출은 TODO.
-// 서버가 부르는 함수 2개만 이 이름과 형식을 지켜주세요.
 import { readFileSync } from 'node:fs'
+import { askJson } from './llm.js'
+import { buildTypesPrompt, buildTextPrompt } from './prompts.js'
+import { validateTypes, validateTextAnswers } from './validate.js'
+import { fallbackTypes, fallbackTextAnswers } from './fallback.js'
 
 const load = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf-8'))
 
 // 프롬프트①: 질문 + condition → types [{type_id, name, ratio, description, attributes?, probs?}]
 export async function getTypes(form, condition) {
   try {
-    // TODO(수민): LLM 호출 → JSON 검증(ratio 합 1, 필드 확인)
-    return load('../data/types.json').types
+    const { system, user } = buildTypesPrompt(form, condition)
+    return await askJson({
+      system,
+      user,
+      validate: (raw) => validateTypes(raw, form, condition),
+    })
   } catch (e) {
-    console.error('[ai] 프롬프트① 실패, 폴백 사용:', e.message)
-    return [] // 엔진이 기본 유형으로 계속 진행
+    console.error('[ai] 프롬프트① 실패, 규칙 기반 폴백 사용:', e.message)
+    try {
+      return validateTypes({ types: fallbackTypes(form, condition) }, form, condition).map((t) => ({ ...t, source: 'fallback' }))
+    } catch (e2) {
+      console.error('[ai] 규칙 기반 폴백도 실패, 고정 샘플 사용:', e2.message)
+      try {
+        return load('../data/types.json').types
+      } catch {
+        return []
+      }
+    }
   }
 }
 
 // 프롬프트②: types + 서술형 질문 + requests → [{type_id, question_id, answers}]
-export async function getTextAnswers(types, questions, requests) {
+const CHUNK = 6 // 한 번에 AI에 맡기는 요청 수(길이 초과 방지)
+const MAX_PER_REQUEST = 10 // 요청당 AI가 만드는 답 상한. 엔진이 모자라면 돌려 쓴다(count가 50이어도 10개만 받음)
+export async function getTextAnswers(types, questions, rawRequests) {
+  const requests = rawRequests.map((r) => ({ ...r, count: Math.min(r.count, MAX_PER_REQUEST) }))
   try {
-    // TODO(수민): LLM 호출. requests의 count만큼 answers 생성
-    return load('../data/text_answers.json')
+    const chunks = []
+    for (let i = 0; i < requests.length; i += CHUNK) chunks.push(requests.slice(i, i + CHUNK))
+    const results = await Promise.all(
+      chunks.map((reqs) => {
+        const { system, user } = buildTextPrompt(types, questions, reqs)
+        return askJson({ system, user, maxTokens: 8000, validate: (raw) => validateTextAnswers(raw, reqs) })
+      }),
+    )
+    return results.flat()
   } catch (e) {
-    console.error('[ai] 프롬프트② 실패, 폴백 사용:', e.message)
-    return [] // 엔진이 기본 문장으로 채움
+    console.error('[ai] 프롬프트② 실패, 규칙 기반 폴백 사용:', e.message)
+    try {
+      return validateTextAnswers(fallbackTextAnswers(types, questions, requests), requests).map((a) => ({ ...a, source: 'fallback' }))
+    } catch (e2) {
+      console.error('[ai] 규칙 기반 폴백도 실패, 고정 샘플 사용:', e2.message)
+      try {
+        return load('../data/text_answers.json')
+      } catch {
+        return []
+      }
+    }
   }
 }
