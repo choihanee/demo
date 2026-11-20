@@ -22,8 +22,40 @@ export function toFormData(form, row) {
   return p
 }
 
-export async function submitForm(form, rows) {
-  // TODO(다온): 실제 전송 + 재시도. 테스트용 폼에만 제출!
-  // for (const row of rows) await fetch(form.form.submit_url, { method: 'POST', body: toFormData(form, row) })
-  return { submitted: 0, failed: rows.length, message: '아직 구현 전 (샘플 모드)' }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function submitOne(url, body, maxTry = 3) {
+  let lastError = ''
+  for (let t = 1; t <= maxTry; t++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
+      if (res.ok) return { ok: true }
+      lastError = `HTTP ${res.status}`
+      // 400대(데이터 문제)는 재시도해도 같으니 바로 실패 (429만 재시도)
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) break
+    } catch (e) {
+      lastError = e.message
+    }
+    if (t < maxTry) await sleep(1000 * t) // 1초, 2초 쉬고 재시도
+  }
+  return { ok: false, error: lastError }
+}
+
+export async function submitForm(form, rows, { delay = 300 } = {}) {
+  const url = form.form.submit_url
+  let submitted = 0
+  const errors = []
+
+  for (const row of rows) {
+    const r = await submitOne(url, toFormData(form, row))
+    if (r.ok) submitted++
+    else errors.push({ respondent_id: row.respondent_id, error: r.error })
+    await sleep(delay) // 너무 빠르게 보내면 막힐 수 있어서 간격 두기
+  }
+
+  return { submitted, failed: errors.length, errors }
 }
